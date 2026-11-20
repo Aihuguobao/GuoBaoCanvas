@@ -1272,20 +1272,29 @@ function durationField(engine, value) {
 // 否则 <Picture N> 会和实际参考图错位。
 // 用词优先取卡上的英文短标签（label），没有就用 the person / the location。
 // 有定义就够了；参考图里看不到、需要补的部分（半身图的下半身、画框外的背景）由用户自己往这里加。
-function autoSubjectDefs(s) {
-  const picked = []
-  const grab = (ids, kind, list) => {
-    for (const id of (ids || [])) {
-      const e = (list || []).find((x) => x.id === id)
-      if (e && e.ref) picked.push({ label: e.label || '', kind })
-    }
+// ① 主体定义：从后端拿真实的 <Picture N>（含多角度/表情会跳号），不再自己数。
+// refs 是 /api/shot/<集>/<镜>/refs 返回的列表；role=view 的辅助图并进主主体，不出新行。
+function defsFromRefs(refs) {
+  const word = { char: 'the person', scene: 'the location', prop: 'the object' }
+  const cards = {}
+  ;(S.data.characters || []).forEach((c) => { cards[c.id] = c })
+  ;(S.data.scenes || []).forEach((x) => { cards[x.id] = x })
+  ;(S.data.props || []).forEach((x) => { cards[x.id] = x })
+  let subj = 0
+  const lines = []
+  for (const r of refs || []) {
+    if (r.role === 'view') continue
+    subj += 1
+    const card = cards[r.id] || {}
+    const label = card.label || word[r.kind] || 'the person'
+    lines.push(`<Subject ${subj}> is ${label} in <Picture ${r.picture}>.`)
   }
-  grab(s.characters, 'char', S.data.characters)
-  grab(s.scenes, 'scene', S.data.scenes)
-  return picked.slice(0, 3).map((e, i) => {
-    const word = e.label || (e.kind === 'scene' ? 'the location' : 'the person')
-    return `<Subject ${i + 1}> is ${word} in <Picture ${i + 1}>.`
-  }).join('\n')
+  return lines.slice(0, 9).join('\n')
+}
+
+async function autoSubjectDefs(ep, sid) {
+  const r = await api(`/api/shot/${ep}/${sid}/refs`)
+  return defsFromRefs(r.shots || [])
 }
 
 // 判断这段文字是不是自动生成的格式（每行都是 <Subject N> is … in <Picture N>.）。
@@ -1969,18 +1978,21 @@ function shotPanel(s) {
       // 只覆盖「空」或「还是自动格式」的内容 —— 用户手写/补充过的保持原样。
       const curDefs = String((s.video || {}).subject_definitions || '')
       const willWriteDefs = !curDefs.trim() || looksAutoSubject(curDefs)
-      const body = { [key]: picked }
-      if (willWriteDefs) {
-        const nextShot = { ...s, [key]: picked }
-        body.video = { subject_definitions: autoSubjectDefs(nextShot) }
-      }
       await api(`/api/shot/${S.ep}/${s.id}`, {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
+        body: JSON.stringify({ [key]: picked }),
       })
       s[key] = picked
+      // 勾选先落盘，再按新的参考顺序重写 ①（编号以服务端 refs 为准）
       if (willWriteDefs) {
-        s.video = { ...(s.video || {}), subject_definitions: body.video.subject_definitions }
+        try {
+          const defs = await autoSubjectDefs(S.ep, s.id)
+          await api(`/api/shot/${S.ep}/${s.id}`, {
+            method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ video: { subject_definitions: defs } }),
+          })
+          s.video = { ...(s.video || {}), subject_definitions: defs }
+        } catch (e) { /* 取不到就保持原样，别挡住勾选 */ }
       }
       render(); renderStats()
       S.sel.clear(); S.sel.add('shot:' + s.id)
