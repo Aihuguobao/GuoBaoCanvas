@@ -99,6 +99,17 @@ def _say(msg: str) -> None:
         pass
 
 
+def _alert(msg: str) -> None:
+    """没有控制台（pythonw 双击启动）时，用系统对话框把话说明白。"""
+    if sys.stdout is not None:
+        return
+    try:
+        import ctypes
+        ctypes.windll.user32.MessageBoxW(None, msg, "GuoBaoCanvas", 0x10)
+    except Exception:  # noqa: BLE001
+        pass
+
+
 def port_open(port: int, timeout: float = 0.6) -> bool:
     with socket.socket() as s:
         s.settimeout(timeout)
@@ -200,6 +211,10 @@ def main() -> int:
         _say(f"手动装（必须用同一个解释器）：\"{py}\" -m pip install -r \"{os.path.join(AGENT, 'requirements.txt')}\"")
         _say("如果这台机器装了 ComfyUI，也可以改用 ComfyUI 自带的 python 跑（它通常已经有这些依赖）。")
         _say("装完再双击一次 启动画布.bat。")
+        _alert(f"缺 Python 依赖：{missing}\n\n"
+               f"双击同目录的「安装依赖.bat」即可。\n\n"
+               f"手动装（必须用同一个解释器）：\n\"{py}\" -m pip install -r "
+               f"\"{os.path.join(AGENT, 'requirements.txt')}\"")
         return 1
 
     _say(f"启动画布 {url} …")
@@ -219,6 +234,7 @@ def main() -> int:
     except OSError as exc:
         _say(f"起不来 python：{exc}")
         _say(f"试着自己跑：\"{py}\" \"{server}\" --port {port}")
+        _alert(f"起不来 python：{exc}\n\n试着手动跑：\n\"{py}\" \"{server}\" --port {port}")
         return 1
 
     # **必须等端口真的通了再开浏览器**。以前 bat 里等固定 4 秒，冷启动
@@ -228,10 +244,12 @@ def main() -> int:
             break
         if proc.poll() is not None:      # 进程已经死了
             _say("服务启动失败，看这个日志：" + os.path.join(AGENT, "out", "canvas.log"))
+            _alert("画布服务没起来。日志：\n" + os.path.join(AGENT, "out", "canvas.log"))
             return 1
         time.sleep(0.5)
     else:
         _say("等了 45 秒端口还没起来，看日志：" + os.path.join(AGENT, "out", "canvas.log"))
+        _alert("端口 45 秒没起来。日志：\n" + os.path.join(AGENT, "out", "canvas.log"))
         return 1
 
     _say(f"已启动（PID {proc.pid}），端口 {port} 已就绪")
@@ -248,4 +266,5 @@ if __name__ == "__main__":
     except BaseException:
         # pythonw 下崩了没人看得见，至少留一条痕迹
         _say("启动器崩了：\n" + traceback.format_exc())
+        _alert("启动器崩了：\n" + traceback.format_exc()[-1200:])
         raise

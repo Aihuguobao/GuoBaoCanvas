@@ -1,8 +1,7 @@
 # GuoBaoCanvas · 短剧画布 安装与运行手册
 
-> 目标读者：**一台刚装好 Windows、什么环境都没配的新电脑**。
+> 目标读者：一台刚装好 Windows、什么都没配的新电脑。
 > 照这份文档做完，双击 `启动画布.bat` 就能在浏览器里打开画布。
-> 每一步都写了「做什么 / 为什么 / 怎么确认做对了」，别跳步。
 
 ---
 
@@ -30,11 +29,11 @@
 | 项 | 要求 | 说明 |
 |---|---|---|
 | 系统 | Windows 10 / 11 64 位 | 启动脚本是 `.bat`，Linux / macOS 没有现成脚本 |
-| Python | **3.10 或更新**（实测） | 只给画布用，不需要 CUDA / torch |
-| ComfyUI | 建议 **0.42.1 或更新**（实测） | 太老的版本会缺 H3 官方节点（`MiniMaxH3*`），升级 ComfyUI 即可 |
+| Python | **3.10 或更新** | 只给画布用，不需要 CUDA / torch |
+| ComfyUI | **0.42.1 或更新** | 太老的版本缺 H3 官方节点（`MiniMaxH3*`），升级 ComfyUI 即可 |
 | 自定义节点 + 模型 | **一个「必备组件」包**（见第 5、6 步） | 网盘下载，双击一键部署，含节点和三套权重 |
 | 显卡档位 | 8–12 GB 用轻量包 / 16 GB 以上用高配包 | 选错包跑不动，见 6.1 |
-| 显卡 | 建议 **24 GB 显存**（实测） | 显存小会 OOM，16 GB 很勉强 `[未在 16GB 实测]` |
+| 显卡 | 建议 **24 GB 显存** | 16 GB 勉强，8 GB 要换低显存档（见 6.1） |
 | git（不用装） | — | 节点已打进组件包，不需要 git |
 
 ---
@@ -119,7 +118,7 @@ python -m pip install -r requirements.txt
 python -m pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
 ```
 
-`requirements.txt` 里就这几样（版本是开发机实测，写的是下限）：
+`requirements.txt` 里就这几样版本写的是下限：
 
 | 包 | 用在哪 |
 |---|---|
@@ -142,8 +141,7 @@ python -c "import fastapi, uvicorn, cv2, PIL, numpy, websockets, imageio_ffmpeg;
 
 ## 5. 第 4 步：装 ComfyUI
 
-- 建议 **0.42.1 或更新**（实测）。如果你体检时提示缺 `MiniMaxH3*` 节点，
-  那不是节点包没装，是 ComfyUI 版本太老——升级 ComfyUI 即可。
+- 用 **0.42.1 或更新**。体检提示缺 `MiniMaxH3*` 节点不是节点包的问题，是 ComfyUI 太老。
 - 随便用哪种发行版：ComfyUI 官方桌面版 / 官方便携包 / 秋葉整合包都行。
   官方下载页：<https://www.comfy.org/download>
 - 装完先确认 ComfyUI 自己能打开：浏览器访问 `http://127.0.0.1:8188` 有界面。
@@ -153,7 +151,6 @@ python -c "import fastapi, uvicorn, cv2, PIL, numpy, websockets, imageio_ffmpeg;
 
 ## 6. 第 5、6 步：装节点和模型 —— 用「必备组件」包，一步搞定
 
-> 以前这两步是「一个个 clone 节点、一个个下模型」。现在换成组件包：
 > **解压 → 双击 `一键部署.bat` → 选 ComfyUI 目录 → 完事。**
 
 ### 6.1 下载组件包
@@ -213,8 +210,8 @@ python -c "import fastapi, uvicorn, cv2, PIL, numpy, websockets, imageio_ffmpeg;
 | `minimax_h3_audio_vae_fp32.safetensors` | 0.56 GB | 出片：音频 VAE（出片带声音就靠它） | **必需** |
 | `minimax_h3_ref2v_turbo_8step…`（仅高配） | 1.82 GB | 参考图出片的加速 LoRA（8 步） | 高配必需 |
 | `krea2_identity_edit_v2.safetensors` | 1.70 GB | 首帧「锁住这个人」 | **必需** |
-| `krea2_style_reference.safetensors` | 0.43 GB | 角色设定集「换视角」 | **必需** |
-| `QuadView_krea2_v1.safetensors` | 0.85 GB | 「生成四视角图」 | **必需** |
+| `krea2_style_reference.safetensors` | 0.43 GB | 角色设定图「换视角」按钮 | 可选 |
+| `QuadView_krea2_v1.safetensors` | 0.85 GB | 「生成四视角图」按钮 | 可选 |
 | `minimax_h3_fl2va_pruned_int8_convrot.safetensors` | 19.53 GB | **只在「用首帧出片」这条路线用** | 看情况 |
 | `minimax_h3_fl2v_turbo_8step…` | 1.82 GB | 同上，首帧出片的加速 LoRA | 看情况 |
 
@@ -233,8 +230,7 @@ models\loras\minimax_h3_fl2v_turbo_8step_v1.0_comfyui_bf16.safetensors        1.
 同理，不要「去人」「补帧」的，可以把 `custom_nodes\ComfyUI-RMBG\` 和
 `custom_nodes\comfyui-frame-interpolation\` 两个目录删掉再部署。
 
-> 顺带一句：`fl2va` 这条链没有低显存档版本，**显存不到 12 GB 时画布会把「用首帧出片」直接禁用**，
-> 装了大模型也跑不动，轻量包用户可以连同这两个一起删。
+> `fl2va` 没有低显存档：显存不到 12 GB 时画布会禁用「用首帧出片」，装了大模型也跑不动，轻量包用户可以一起删。
 
 ### 6.5 组件包里没有的：Qwen-Image-Edit「改图三件套」（可选）
 
@@ -305,16 +301,8 @@ comfyui:
 
 1. 启动 ComfyUI，确认 `http://127.0.0.1:8188` 能打开。
 2. 双击 **`启动画布.bat`**。
-   窗口会打印每一步：
-   ```
-   Canvas launcher - debug mode
-   work dir : <项目目录>
-   launcher : tools\launch_canvas.py
-   [..] 启动画布 http://127.0.0.1:8766/ …
-   [..] 已用 cmd start 打开浏览器
-   [..] 已启动（PID 12345），端口 8766 已就绪
-   ```
-3. 浏览器自动打开画布；没自动开就手动访问 `http://127.0.0.1:8766/`。
+   不会有黑窗口弹出来，服务在后台起，几秒后浏览器自己打开画布。
+3. 浏览器没自动开就手动访问 `http://127.0.0.1:8766/`。
 
 **关闭**：双击 `关闭画布.bat`（只杀 8766 上的 python，不碰 ComfyUI）。
 
@@ -329,8 +317,8 @@ set CANVAS_PORT=8770
 启动画布.bat
 ```
 
-**关掉那个黑窗口会不会停服务？** 不会。服务是 detached 起的，关窗口不影响。
-调试阶段建议留着窗口看日志；稳定后可以自己把 bat 里的 `python.exe` 换成 `pythonw.exe`，窗口就不再出现。
+**启动不弹窗，那出错了怎么知道？** 真出问题时（缺依赖、端口起不来、启动器崩了）会弹一个系统对话框告诉你，
+详细过程写在下面前两个日志文件里。
 
 **日志位置**：
 
@@ -352,24 +340,21 @@ out\canvas.log          ← 画布后端日志（报错都在这）
    - **权重**：逐个查，缺的会直接列出 **HF 下载链接**、**hf-mirror 镜像**、**该放哪个目录**
    - **节点**：5 个包逐个查，缺的会给出 **`git clone` 地址**
    - 出片用的 H3 权重（ref2va / fl2va / turbo LoRA）单独列，缺了同样给链接
-3. **「模拟未配置」**（勾选框）：忽略已保存的设置和环境变量，模拟一台全新机器——用来验证你手填的路径是否真的生效。
-4. **高级 → 模型文件名**：你下载的文件名和默认不一样（比如换了别的量化版），在这里改名字即可，**不用改代码**。
 
 体检全绿 = 可以出片。
 
 ### 画风怎么选（全片 / 单个素材）
 
-- **顶栏「画风」下拉**：全片默认画风，出片和首帧都用它。新集默认 `CG 人物 + 实拍背景`（cgphoto）。
-- **左栏「新建角色 / 新建场景 / 新建道具」**：弹窗里一次填 名字 + 提示词 + 画风；点「生成」直接建卡并把这张图设成主参考，点「跳过」只建空卡。默认 角色 / 道具 = 写实 CG、场景 = 写实照片；换过的选择会记在这一集里。
-- **单个镜头**还能在右侧面板单独覆盖全片画风。
-- 想「真人」就选 `写实照片`，想动画就选 `动画 · 赛璐璐` —— 画风词会放在提示词最前面，Krea2 才会按这个介质出图。
+- **新建素材弹窗里的「画风」**：建角色 / 场景 / 道具时选，只影响这一次生成。新集默认 `CG 人物 + 实拍背景`（cgphoto）。
+- **右侧镜头面板的「画风」**：这一镜用什么画风，留空就跟随项目的默认。
+- 想「真人」选 `写实照片`，想动画选 `动画 · 赛璐璐`——画风词放在提示词最前面，Krea2 才会按这个介质出图。
 
 ---
 
 ## 9.1 升级到新版本
 
-画布会在加载时问一次 GitHub（3 秒超时，连不上就算了），仓库有新提交就在页面顶部提示一行
-「有新版本可用：本机 xxx → 仓库 yyy」，点 × 之后同一版本不再提示。
+画布加载时问一次 GitHub，仓库有新提交就在页面顶部提示一行「有新版本可用：本机 xxx → 仓库 yyy」，
+点 × 之后同一版本不再提示。连不上 GitHub 时不提示，也不影响使用。
 
 更新方式按你当初怎么装的来：
 
@@ -443,10 +428,9 @@ out\canvas.log          ← 画布后端日志（报错都在这）
 **预期**：8 GB 显存不是不能跑，是「能跑但很慢」，一条 5 秒片可能要十几分钟到半小时以上。
 画布「体检」里会显示显存总量与空闲量；低于 12 GB 会标黄并给出这条建议，出片报 OOM 时也会直接告诉你按上面哪几步做。
 
-### 11.0 8 GB 显存能不能跑？能，但要换一套配置（社区实测）
+### 11.0 8 GB 显存能不能跑
 
-先纠正一个容易犯的错：**别拿「权重加起来 34 GB」去推断 8 GB 跑不了**。社区已经实测跑通，
-办法是把两头都缩小，再配 `--lowvram`：
+能，但两头都要缩小，再配 `--lowvram`：
 
 | 角色 | 标准档 | 8 GB 方案 |
 |---|---|---|
@@ -456,12 +440,11 @@ out\canvas.log          ← 画布后端日志（报错都在这）
 | 出片参数 | 8 步（画布默认） | 480×864、158 帧、euler + simple |
 | 额外节点 | — | [ComfyUI-ClipProj](https://github.com/nicolab28/ComfyUI-ClipProj)（≥0.1.13，提供 `ClipProjApply`） |
 
-实测环境：**RTX 4060 Laptop 8 GB 显存 + 16 GB 内存**，来源
+参考环境：RTX 4060 Laptop 8 GB 显存 + 16 GB 内存，来源
 [reventadirecta/MiniMax-H3-ComfyUI-8GB-VRAM](https://github.com/reventadirecta/MiniMax-H3-ComfyUI-8GB-VRAM)（MIT）。
 
-> **实测**：**8 GB 显存 + 32 GB 内存**的机器，`--lowvram --fp16-vae`，
-> 用画布「低显存（W4A8 + 4B 编码器）」档跑通：**608×352、5 秒片约 7 分钟**（当时按 20 步测的，
-> 现在画布默认 8 步，会更快）。**32 GB 内存就够，不需要 48 GB。**
+用画布「低显存（W4A8 + 4B 编码器）」档加 `--lowvram --fp16-vae`，8 GB 显存 + 32 GB 内存的机器上
+608×352、5 秒片约 7 分钟（20 步；现在默认 8 步会更快），32 GB 内存够用。
 
 画布「体检 → 8 GB 显存方案」那一段会把这四个文件的下载链接、存放目录、启动参数、推荐分辨率都列出来；
 缺哪个标哪个。装好 `ComfyUI-ClipProj` 节点、三个文件到位后，**在右侧「出片模型档位」选「低显存（W4A8 + 4B 编码器）」**
@@ -483,7 +466,8 @@ GuoBaoCanvas\
 ├── engines\ styles\   ← 引擎参数 / 画风
 ├── tools\                 ← launch_canvas / stop_canvas / pick_dir
 ├── projects\              ← 你的集（数据，不进 git）
-└── out\                   ← 日志与临时产物（不进 git）
+├── 素材\                  ← 角色 / 场景 / 道具的图，按集分类（不进 git）
+└── out\                   ← 日志、单片、成片（不进 git）
 ```
 
 ---
@@ -493,7 +477,7 @@ GuoBaoCanvas\
 - 只有 Windows 启动脚本；其它系统需要自己 `python canvas/server.py --port 8766`。
 - 画布主路线是 **ref2va（参考图生成）**；`fl2va` 图生视频要额外 2 个权重（见 6.3 表里标「看情况」的两行）。
 - 画布**不提交 GPU 任务时不会占用显卡**；真正出片是 ComfyUI 在跑，关画布不会中断已提交的任务，要停得去 ComfyUI 里取消。
-- 模型文件名和默认不同没关系——设置页「高级」里改名字即可。
+- 模型文件名要和默认一致；组件包里的名字是对的，别自己改。
 
 ---
 
