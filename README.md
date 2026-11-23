@@ -41,14 +41,27 @@
 
 ## 2. 第 1 步：把代码放到一个目录
 
-两种方式任选：
+仓库有两个地方，同一份代码，国内选 Gitee 会快很多：
+
+| 平台 | 地址 | 说明 |
+| --- | --- | --- |
+| GitHub | <https://github.com/Aihuguobao/GuoBaoCanvas> | 主仓；每次推送两边同时更新 |
+| Gitee（国内镜仓） | <https://gitee.com/AiHuGuoBao/GuoBaoCanvas> | 和 GitHub 同一份代码，国内拉取快 |
+
+三种拉法任选：
 
 ```bat
-:: 有 git（在当前目录下建一个 GuoBaoCanvas 文件夹）
-git clone <本仓库地址> GuoBaoCanvas
+:: 有 git，国内推荐（Gitee，速度快）
+git clone https://gitee.com/AiHuGuoBao/GuoBaoCanvas.git GuoBaoCanvas
+
+:: 有 git，能连 GitHub 时
+git clone https://github.com/Aihuguobao/GuoBaoCanvas.git GuoBaoCanvas
 ```
 
-或者直接在 GitHub 页面点 **Code → Download ZIP**，解压到比如 D 盘根目录下的 `GuoBaoCanvas` 文件夹。
+不想装 git：打开上面任一地址，点 **Code → Download ZIP**（Gitee 是「克隆/下载 → 下载 ZIP」），
+解压到比如 D 盘根目录下的 `GuoBaoCanvas` 文件夹。
+
+> ZIP 装下来没有 `.git`，以后升级只能重新下载覆盖；想以后只 `git pull` 一条命令升级的，用 git clone。
 
 解压后目录里应该能看到：
 
@@ -362,7 +375,7 @@ out\canvas.log          ← 画布后端日志（报错都在这）
 
 | 装法 | 怎么升级 |
 | --- | --- |
-| `git clone` 装的 | 进仓库目录执行 `git pull`，然后双击 `重启画布.bat` |
+| `git clone` 装的（GitHub 或 Gitee 都行） | 进仓库目录执行 `git pull`（`origin` 指向你当初 clone 的那个），然后双击 `重启画布.bat` |
 | 下载 ZIP 装的 | 重新下载 ZIP、解压覆盖到原目录。**`projects\`、`素材\`、`out\` 是你的数据和片子，别删** |
 
 `projects`、`素材`、`out` 都在 `.gitignore` 里，`git pull` 不会动它们，也不会冲突。
