@@ -61,6 +61,23 @@ const insp = $('inspector')
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v))
 const fpath = (p) => '/api/file?path=' + encodeURIComponent(p)
+
+// 有新提交就提示一次（只提示，不自动改代码）。关掉之后同一版本不再弹。
+async function checkUpdate() {
+  try {
+    const r = await api('/api/version')
+    if (!r.newer) return
+    const key = 'updSkip_' + (r.remote || '')
+    if (localStorage.getItem(key)) return
+    $('updText').textContent = `有新版本可用：本机 ${r.version} → 仓库 ${r.remote}`
+    $('updBar').classList.remove('hidden')
+    $('updClose').onclick = () => {
+      $('updBar').classList.add('hidden')
+      localStorage.setItem(key, '1')
+    }
+  } catch (e) { /* 网络不通就不提示 */ }
+}
+checkUpdate()
 // 视频/封面会被同名文件覆盖（latest.mp4），URL 不变浏览器就复用旧缓存。
 // 加时间戳强制换 URL —— 图片那边一直这么干，视频标签漏了。
 const fpathLive = (p) => fpath(p) + '&t=' + Date.now()

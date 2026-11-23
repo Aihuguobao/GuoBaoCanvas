@@ -255,9 +255,39 @@ def _nowin() -> dict:
     return {"creationflags": 0x08000000, "stdin": subprocess.DEVNULL}
 
 
+_REMOTE_CACHE = {"at": 0.0, "sha": "", "ahead": False}
+
+
+def _remote_state(local: str) -> tuple[str, bool]:
+    """远端 master 的短哈希 + 它是否比本地新（只认 GitHub 的 compare 结论）。"""
+    import urllib.request
+    now = time.time()
+    if _REMOTE_CACHE["at"] and now - _REMOTE_CACHE["at"] < 3600:
+        return _REMOTE_CACHE["sha"], _REMOTE_CACHE["ahead"]
+    sha, ahead = "", False
+    try:
+        api = "https://api.github.com/repos/Aihuguobao/GuoBaoCanvas"
+        req = urllib.request.Request(f"{api}/commits/master",
+                                     headers={"User-Agent": "GuoBaoCanvas"})
+        with urllib.request.urlopen(req, timeout=3) as r:
+            sha = str(json.loads(r.read()).get("sha") or "")[:7]
+        if sha and local:
+            req2 = urllib.request.Request(f"{api}/compare/{local}...{sha}",
+                                          headers={"User-Agent": "GuoBaoCanvas"})
+            with urllib.request.urlopen(req2, timeout=3) as r2:
+                ahead = str(json.loads(r2.read()).get("status") or "") == "ahead"
+    except Exception:  # noqa: BLE001
+        ahead = False
+    _REMOTE_CACHE.update({"at": now, "sha": sha, "ahead": ahead})
+    return sha, ahead
+
+
 @app.get("/api/version")
 def app_version():
-    return {"app": APP_NAME, "repo": APP_REPO, "version": _app_version()}
+    local = _app_version()
+    remote, ahead = _remote_state(local)
+    return {"app": APP_NAME, "repo": APP_REPO, "version": local,
+            "remote": remote, "newer": bool(ahead)}
 
 
 def _app_version() -> str:

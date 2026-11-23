@@ -256,6 +256,18 @@ main { display: flex; flex: 1 1 auto; min-height: 0; overflow: hidden; }
 }
 .toast.err { border-color: #b8483f; color: #f0a49e; }
 .toast.hidden { display: none; }
+.updbar {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 60;
+  display: flex; align-items: center; gap: 10px;
+  padding: 6px 14px; font-size: 12px;
+  background: #3a2f12; color: #e8b84b; border-bottom: 1px solid #5a4720;
+}
+.updbar.hidden { display: none; }
+.updbar a { color: #6cc2ff; }
+.updbar button {
+  margin-left: auto; background: transparent; border: 0;
+  color: inherit; font-size: 15px; cursor: pointer; padding: 0 4px;
+}
 .sheet-grid { display: flex; flex-wrap: wrap; gap: 6px; }
 .sheet-item { position: relative; width: 84px; height: 150px; }
 .sheet-item img {
