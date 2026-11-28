@@ -174,8 +174,154 @@ async function autoTierIfLowVram() {
   }
 }
 
+function genErrText(e, fallback) {
+  const st = Number(e && e.status) || 0
+  const raw = String((e && e.message) || '').trim()
+  if (st === 409 || /正在跑别的任务|ComfyUI 正在跑/.test(raw)) {
+    return 'ComfyUI 正忙（端口 8188 上还有别的任务在跑），这次没提交。等它跑完再点，或去 ComfyUI 点中断。'
+  }
+  if (st === 405 || st === 404 || /Method Not Allowed|Not Found/i.test(raw)) {
+    return '画布服务版本对不上（这个接口还不存在）。重启一下画布就好；现在这次没提交。'
+  }
+  if (st === 0 || /Failed to fetch|NetworkError|ECONNREFUSED/i.test(raw)) {
+    return '连不上画布服务（8765 端口没响应）。看画布是不是已经关掉了。'
+  }
+  return raw ? raw.slice(0, 240) : (fallback || '生成失败')
+}
+
+
+let progHideTimer = null
+let progLastAlive = 0      // 上次真正有进度的时间
+let progStopping = false   // 正在执行「停止」：这段时间显示由 bindStopButton 接管
+
+function renderProgress(p) {
+  const wrap = $('progWrap')
+  const bar = $('progBar')
+  const txt = $('progText')
+  if (!wrap || !bar || !txt || !p) return
+  if (progStopping) return          // 停止过程中别把「停止中…」刷成进度文字
+  const pct = Math.max(0, Math.min(100, Number(p.percent) || 0))
+  const secs = Math.round(Number(p.elapsed) || 0)
+  if (p.running) {
+    progLastAlive = Date.now()
+    clearTimeout(progHideTimer)
+    progHideTimer = null
+    wrap.classList.remove('hidden')
+    wrap.classList.toggle('stalled', !!p.stale)
+    bar.style.width = Math.max(2, pct) + '%'
+    const parts = [pct > 0 ? pct.toFixed(0) + '%' : '启动中']
+    if (p.node) parts.push('节点 ' + p.node)
+    parts.push('已 ' + secs + 's')
+    if (Number(p.eta) > 1) parts.push('剩约 ' + Math.round(Number(p.eta)) + 's')
+    if (p.queued) parts.push('排队 ' + p.queued)
+    txt.textContent = parts.join(' · ')
+    return
+  }
+  // 从来没跑过任务、也没有进度：什么都别显示。
+  // 刚重启时后端会返回 running=false + stale=true + percent=0，别把这当成"在等"。
+  if (!p.running && pct < 0.1 && !progLastAlive) {
+    clearTimeout(progHideTimer)
+    progHideTimer = null
+    wrap.classList.add('hidden')
+    bar.style.width = '0%'
+    return
+  }
+  // 后端把「多久没新步」当结束信号，可 H3 一步要 190 秒左右，中间会被误判成结束。
+  // 百分比没到 100 就不收条，改成"等待中"；真有 10 分钟一动不动才收起来。
+  const silent = progLastAlive ? Date.now() - progLastAlive : 0
+  if (p.stale && pct < 99.9 && progLastAlive && silent < 10 * 60 * 1000) {
+    wrap.classList.remove('hidden')
+    wrap.classList.add('stalled')
+    bar.style.width = Math.max(2, pct) + '%'
+    txt.textContent = '等待中 · 已 ' + secs + 's（长步之间没进度是正常的）'
+    return
+  }
+  // 刚结束：先停在 100% 一会儿，再收起来（不然一闪就没了，用户以为没跑）
+  if (!wrap.classList.contains('hidden') && !progHideTimer) {
+    bar.style.width = '100%'
+    txt.textContent = '完成 · 用时 ' + secs + 's'
+    progHideTimer = setTimeout(() => {
+      wrap.classList.add('hidden')
+      wrap.classList.remove('stalled')
+      bar.style.width = '0%'
+      progHideTimer = null
+    }, 2500)
+  }
+}
+
+async function tickProgress() {
+  try {
+    renderProgress(await api('/api/comfy/progress'))
+  } catch (e) { /* 画布刚重启那一下会失败，忽略 */ }
+}
+
+// 进度卡片上的「停止」：中断 ComfyUI 正在跑的任务。
+// ComfyUI 只能在采样步的边界退出，H3 一步约 190 秒，所以点了不会立刻停。
+// 这里把等待过程显性化：按钮变「停止中」并禁用，轮询到真的停下才收起卡片。
+function bindStopButton() {
+  const btn = $('progStop')
+  if (!btn || btn.dataset.bound === '1') return
+  btn.dataset.bound = '1'
+  btn.onclick = async () => {
+    if (progStopping) return
+    const wrap = $('progWrap')
+    const bar = $('progBar')
+    const txt = $('progText')
+    progStopping = true
+    btn.disabled = true
+    btn.textContent = '停止中'
+    const t0 = Date.now()
+    if (txt) txt.textContent = '停止指令已发，等当前这一步结束…'
+    if (wrap) wrap.classList.add('stalled')
+
+    try {
+      await api('/api/comfy/interrupt', { method: 'POST' })
+    } catch (e) {
+      // 连不上 ComfyUI 之类：别一直卡在「停止中」
+      progStopping = false
+      btn.disabled = false
+      btn.textContent = '停止'
+      toast(genErrText(e, '停止失败'), true)
+      return
+    }
+
+    let stopped = false
+    let lastPct = null
+    for (let i = 0; i < 150; i++) {          // 最长等 5 分钟
+      await new Promise((r) => setTimeout(r, 2000))
+      let p = null
+      try { p = await api('/api/comfy/progress') } catch (e) { continue }
+      if (!p.running) { stopped = true; break }
+      if (txt) {
+        const secs = Math.round((Date.now() - t0) / 1000)
+        const pct = Number(p.percent) || 0
+        lastPct = pct
+        txt.textContent = '停止中… 已等 ' + secs + 's' + (pct > 0 ? ' · 当前 ' + pct.toFixed(0) + '%' : '')
+      }
+    }
+
+    progStopping = false
+    btn.disabled = false
+    btn.textContent = '停止'
+    progLastAlive = 0
+    if (stopped) {
+      if (wrap) { wrap.classList.add('hidden'); wrap.classList.remove('stalled') }
+      if (bar) bar.style.width = '0%'
+      toast('已停止')
+    } else if (txt) {
+      txt.textContent = '还没停下：可能卡在某一步里，等它自己结束或去 ComfyUI 看'
+      toast('5 分钟还没停下，去 ComfyUI 看看', true)
+    }
+  }
+}
+
+
 async function boot() {
   setTimeout(fitMainHeight, 0)
+  // 进度条常驻轮询：出图和出视频都会经过 ComfyUI，进度都从这里读
+  tickProgress()
+  setInterval(tickProgress, 2000)
+  bindStopButton()
   await preflightEnv()
   const eps = await api('/api/episodes')
   try { S.vocab = await api('/api/vocab') } catch (e) { S.vocab = null }

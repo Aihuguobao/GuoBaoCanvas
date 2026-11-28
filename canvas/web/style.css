@@ -451,3 +451,65 @@ text.edgelabel { fill: #9fc0d8; font-size: 11px; font-family: "Microsoft YaHei",
   background: #1d2c3b;
   color: #fff;
 }
+
+/* ---- ComfyUI 任务进度条（左下角小卡片，不挡顶栏按钮）---- */
+.prog-wrap {
+  position: fixed;
+  left: 12px; bottom: 12px;
+  width: 236px;
+  z-index: 260;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 8px;
+  background: rgba(15, 19, 24, 0.9);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  pointer-events: none;
+}
+.prog-wrap.hidden { display: none; }
+.prog-wrap .prog-track {
+  position: relative;
+  height: 5px;
+  border-radius: 3px;
+  background: rgba(79, 163, 255, 0.18);
+  overflow: hidden;
+}
+#progBar {
+  position: absolute;
+  top: 0; left: 0;
+  height: 100%;
+  width: 0;
+  background: linear-gradient(90deg, #3f8fe0, #7bd0ff);
+  transition: width 0.4s ease;
+}
+#progText {
+  font-size: 11px;
+  line-height: 1.35;
+  color: #cfe0ef;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.prog-foot {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.prog-foot #progText { flex: 1; min-width: 0; }
+.prog-stop {
+  flex: none;
+  pointer-events: auto;              /* 卡片本身不挡点击，这个按钮要能点 */
+  padding: 1px 9px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: #f0a49e;
+  background: #241a1a;
+  border: 1px solid #6b3a36;
+  border-radius: 5px;
+  cursor: pointer;
+}
+.prog-stop:hover { background: #33201e; border-color: #a04b45; color: #ffd0cb; }
+.prog-stop:disabled { opacity: 0.5; cursor: default; }
+.prog-wrap.stalled #progBar { background: linear-gradient(90deg, #b8842f, #e0a33a); }
+.prog-wrap.stalled #progText { color: #e0c48a; }

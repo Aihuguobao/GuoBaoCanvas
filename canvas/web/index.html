@@ -35,6 +35,13 @@
      style="text-decoration:none;display:inline-flex;align-items:center;color:#cfe0ef">帮助</a>
   <button id="setBtn" class="ghost">设置</button>
 </header>
+<div id="progWrap" class="prog-wrap hidden" title="ComfyUI 当前任务：进度 / 当前节点 / 已用时间">
+  <div class="prog-track"><div id="progBar"></div></div>
+  <div class="prog-foot">
+    <span id="progText"></span>
+    <button type="button" id="progStop" class="prog-stop" title="停掉 ComfyUI 正在跑的这个任务">停止</button>
+  </div>
+</div>
 <div id="toast" class="toast hidden"></div>
 <div id="updBar" class="updbar hidden"><span id="updText"></span><a id="updLink" href="https://github.com/Aihuguobao/GuoBaoCanvas" target="_blank" rel="noopener">看仓库</a><button id="updClose" type="button" title="不再提示这一版">×</button></div>
 

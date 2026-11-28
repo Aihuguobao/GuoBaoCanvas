@@ -162,5 +162,45 @@ def snapshot() -> dict:
     out = dict(STATE)
     if STATE["running"] and STATE["started"]:
         out["elapsed"] = round(time.time() - STATE["started"], 1)
-    out["stale"] = (time.time() - STATE["updated"]) > 30 if STATE["updated"] else True
+    silent = (time.time() - STATE["updated"]) if STATE["updated"] else 1e9
+
+    # 队列才是唯一真相，别拿"多久没进度"判生死：
+    # H3 实测每步 193 秒，远大于原来 120 秒的阈值 —— 每跨一步就有一分多钟被误判成
+    # "任务结束了"，进度条收起来、下一步又弹出来（2026-11-28 用户看到的闪断）。
+    q_run, q_pend, q_ids = (-1, -1, [])
+    try:
+        import urllib.request as _u
+
+        with _u.urlopen(_http() + "/queue", timeout=2) as _r:
+            _q = json.load(_r)
+        q_run = len(_q.get("queue_running") or [])
+        q_pend = len(_q.get("queue_pending") or [])
+        q_ids = [str(i[1]) for i in (_q.get("queue_running") or []) if len(i) > 1]
+    except Exception:            # noqa: BLE001 - 查不到就按沉默时长兜底
+        pass
+
+    if q_run > 0 or q_pend > 0:
+        # 还在队列里＝还在跑。哪怕 websocket 半天没推 step，也不能显示成"完成"。
+        out["running"] = True
+        out["stale"] = False
+        out["queued"] = q_pend
+        if q_ids and not out.get("prompt_id"):
+            out["prompt_id"] = q_ids[0]
+        if out.get("started"):
+            out["elapsed"] = round(time.time() - out["started"], 1)
+        return out
+
+    if q_run == 0 and q_pend == 0:
+        # 队列空 → 确实结束了
+        out["running"] = False
+        out["eta"] = 0.0
+        if out.get("percent") and out["percent"] < 100:
+            out["percent"] = 0.0
+        out["stale"] = silent > 300
+        return out
+
+    # 查不到队列：退回"沉默 5 分钟算结束"（原来的 120 秒对长步太激进）
+    out["stale"] = silent > 300
+    if out["stale"]:
+        out["running"] = False
     return out

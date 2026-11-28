@@ -340,7 +340,28 @@ def free_vram():
         pass
 
 
-def interrupt():
+def interrupt() -> dict:
+    """停掉 ComfyUI 上正在跑的任务，并清掉排队。
+
+    画布进度卡片上的「停止」走这里。先删排队再中断：只中断当前那一条的话，
+    排队的会立刻接着跑，用户会以为没停住。
+    """
+    deleted = 0
+    try:
+        q = queue()
+        ids = [str(x[1]) for x in (q.get("queue_pending") or [])
+               if isinstance(x, (list, tuple)) and len(x) > 1]
+        if ids:
+            _req("/queue", {"delete": ids}, timeout=15)
+            deleted = len(ids)
+    except ComfyError:
+        pass
+    _req("/interrupt", {}, timeout=15)
+    return {"deleted": deleted}
+
+
+
+def interrupt_old():
     try:
         _req("/interrupt", {}, timeout=15)
     except ComfyError:

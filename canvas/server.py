@@ -1935,6 +1935,15 @@ def job_status(job_id: str):
     return out
 
 
+@app.post("/api/comfy/interrupt")
+def comfy_stop():
+    """画布上点「停止」：中断 ComfyUI 正在跑的任务，顺手清掉排队。"""
+    try:
+        return {"ok": True, **comfy.interrupt()}
+    except Exception as exc:            # noqa: BLE001 - ComfyUI 没开等情况
+        raise HTTPException(status_code=502, detail=f"停止失败：{exc}") from None
+
+
 @app.get("/api/comfy/progress")
 def comfy_progress():
     """当前 ComfyUI 任务进度（采样步数 / 百分比 / 预估剩余）。"""
